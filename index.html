@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="https://d3js.org/d3-selection-multi.v0.4.min.js"></script>
+    <script src='https://npmcdn.com/babel-core@5.8.34/browser.min.js'></script>
+    <!--    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>-->
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Quicksand" rel="stylesheet">
+
+    <title>D3 Data Viz Project</title>
+
+    <style>
+        .line {
+            fill: none;
+            stroke: #a7a8c6;
+            stroke-width: 2px;
+        }
+
+        .area {
+            fill: #e0e6f4;
+            /*            opacity: 0.2;*/
+        }
+
+        .outer-area {
+            fill: white;
+        }
+
+
+        .bottom-axis .domain {
+            stroke: none;
+        }
+
+        .bottom-axis .tick line {
+            stroke: none;
+        }
+
+        .bot-axis-top-line {
+            stroke: #a7a8c6;
+            stroke-width: 2;
+        }
+
+        .grid line {
+            stroke: #F9FBFF;
+            stroke-width: 1;
+            /*            opacity: 0.2;*/
+            stroke: white;
+            stroke-width: 1;
+            opacity: 0.6;
+        }
+
+        .grid .domain {
+            stroke: none;
+
+        }
+
+        .tick text {
+            font-family: 'Lato', sans-serif;
+            font-size: 12px;
+            fill: #a7a8c6;
+            text-transform: uppercase;
+            font-weight: 800;
+        }
+
+        .overlay {
+            fill: none;
+            pointer-events: all;
+        }
+
+        .title {
+            font-family: 'Lato', 'Quicksand', sans-serif;
+            font-size: 40.5px;
+            fill: #2a2a2a;
+            text-anchor: middle;
+            font-weight: 400;
+        }
+
+        .subtitle {
+            font-family: 'Lato', 'Quicksand', sans-serif;
+            font-size: 27px;
+            fill: #2a2a2a;
+            text-anchor: middle;
+            font-weight: 300;
+        }
+
+        .footer-left {
+            font-family: 'Quicksand', sans-serif;
+            font-size: 15px;
+            fill: #2a2a2a;
+            font-weight: 400;
+        }
+
+        .footer-right {
+            font-family: 'Quicksand', sans-serif;
+            font-size: 15px;
+            fill: #2a2a2a;
+            text-anchor: end;
+            font-weight: 400;
+        }
+
+        .graph-info {
+            font-family: 'Quicksand', sans-serif;
+            font-size: 15px;
+            fill: #2a2a2a;
+            font-weight: 400;
+        }
+
+        .pin-point-line {
+            stroke: black;
+            stroke-width: 1;
+            fill: none;
+        }
+
+        .pin-point-title {
+            font-family: 'Lato';
+
+            font-weight: 800;
+            text-anchor: end;
+        }
+
+        .pin-point-text {
+            font-family: 'Lato';
+            font-size: 13px;
+            font-weight: 400;
+            text-anchor: end;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <script>
+        //svg width and height
+        var w = 960,
+            h = 700;
+            h = 600;
+
+        // bottom axis text size and padding 
+        var font_size = 12;
+        var text_padding = 6; //should be 3 but is 6...
+
+        var margin = {
+                top: 250,
+                bottom: 100,
+                left: 100,
+                right: 20
+            },
+            width = w - margin.left - margin.right,
+            height = h - margin.top - margin.bottom;
+
+        //ticks array
+        var ticksArray = [
+            "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"
+        ]
+        //line function
+        var valueLine = d3.line()
+            .x(function(d) {
+                return x(d.date)
+            })
+            .y(function(d) {
+                return y(d.close)
+            })
+        //            .curve(d3.curveCardinal);
+
+        //helper variables for pin points
+        // var verticalLine = 20
+        // var horisontalLine = 10
+
+        function pinPointLine(data, verticalLine, horisontalLine) {
+            return "M " + (x(data.date) - 5) + " " + (y(data.close) - 10) + " L " + (x(data.date) - 5) + " " + (y(data.close) - verticalLine) + " L " + (x(data.date) - 5 - horisontalLine) + " " + (y(data.close) - verticalLine)
+        }
+
+        function pinPointX(data, horisontalLine) {
+            return (x(data.date) - 5 - horisontalLine)
+        }
+
+        function pinPointY(data, verticalLine) {
+            return (y(data.close) - verticalLine)
+        }
+
+        function pinPointTitle(data) {
+            var split = data.pinPoint.split("\\n");
+            return split[0];
+        }
+        //        function pinPointText(data){
+        //            var split = data.pinPoint.split("\\n");
+        //            return split[1];
+        //        }
+        function pinPointText(data,index) {
+            var split = data.pinPoint.split("\\n");
+            return split[index]
+        }
+
+
+        //area function
+        var area = d3.area()
+            .x(function(d) {
+                return x(d.date);
+            })
+            .y0(height)
+            .y1(function(d) {
+                return y(d.close);
+            });
+
+        //outer area
+        var outerArea = d3.area()
+            .x(function(d) {
+                return x(d.date);
+            })
+            .y0(0)
+            .y1(function(d) {
+                return y(d.close);
+            });
+        //Time parse function
+        var parseTime = d3.timeParse("%m/%d/%Y");
+
+
+        //The scale of the graph
+        var y = d3.scaleLinear().range([height, 0]);
+        var x = d3.scaleTime().range([0, width]);
+
+        //function to create axis
+        function make_bottom_axis() {
+            return d3.axisBottom(x).ticks(11).tickFormat(d3.timeFormat("%b"));
+        }
+
+        //function to create the grid lines
+        function make_y_gridLines() {
+            return d3.axisBottom(x).tickFormat("").tickSize(-height);
+        }
+
+        //transforming mouse x pos to the value that coresponds in the graph
+
+
+
+
+
+        var svg = d3.select("body").append("svg")
+            .attr("width", w)
+            .attr("height", h)
+            .append("g")
+            .attr("transform", "translate(" + margin.left + ", " + margin.top + ")");
+
+        //microsoft stock data being loaded
+        d3.tsv("data.tsv", function(error, data) {
+
+            if (error) {
+                throw error;
+            }
+            data.forEach(function(d) {
+                d.date = parseTime(d.date);
+                d.close = +d.close;
+
+            });
+            console.log(data);
+            y.domain([d3.min(data, function(d) {
+                return d.close - 8 // increasing the scale
+            }), d3.max(data, function(d) {
+                return d.close
+            })]);
+
+            x.domain(d3.extent(data, function(d) {
+                return d.date
+            }));
+            console.log(d3.min(data, function(d) {
+                return d.close // increasing the scale
+            }));
+            //transforming mouse x pos to the value that coresponds in the graph
+            var xPosToCloseVal = d3.scaleLinear().range(d3.extent(data, function(d) {
+                return d.close
+            })).domain([100, width]);
+            //transforming mouse x pos to the value that coresponds in the graph
+            //            var yPosToDateVal = d3.scaleTime().range(d3.extent(data, function(d) {
+            //                return d.date
+            //            })).domain([height, 0]);
+
+
+            svg.append("path")
+                .data([data])
+                .attr("class", "area")
+                .attr("d", area);
+
+            //add the vertical grid
+            svg.append("g")
+                .call(make_y_gridLines())
+                .attr("transform", "translate(" + 0 + ", " + height + ")")
+                .attr("class", "grid")
+            
+
+            //add the outer area
+            svg.append("path")
+                .data([data])
+                .attr("class", "outer-area")
+                .attr("d", outerArea);
+            //add the path
+            svg.append("path")
+                .datum(data)
+                .attr("d", valueLine)
+                .attr("class", "line");
+
+
+
+            //add pin points
+            
+            //microsoft azure (24)
+            //pin point line
+            svg.append("path")
+                .attr("d", pinPointLine(data[24], 100, 30))
+                .attr("class", "pin-point-line");
+            //pin poin title
+            svg.append("text")
+                .text(pinPointTitle(data[24]))
+                .attr("x", pinPointX(data[24], 35))
+                .attr("y", pinPointY(data[24], 100))
+                .attr("class", "pin-point-title");
+            //pin point text
+            svg.append("text")
+                .attr("x", pinPointX(data[24], 35))
+                .attr("y", pinPointY(data[24], 100))
+                .attr("dy", "1em")
+                .attr("class", "pin-point-text")
+                .text(pinPointText(data[24],1));
+             svg.append("text")
+                .attr("x", pinPointX(data[24], 35))
+                .attr("y", pinPointY(data[24], 100))
+                .attr("dy", "2em")
+                .attr("class", "pin-point-text")
+                .text(pinPointText(data[24],2));
+
+            //microsoft surface pro 5 (117)
+            //pin point line
+            svg.append("path")
+                .attr("d", pinPointLine(data[117], 100, 30))
+                .attr("class", "pin-point-line");
+            //pin poin title
+            svg.append("text")
+                .text(pinPointTitle(data[117]))
+                .attr("x", pinPointX(data[117], 35))
+                .attr("y", pinPointY(data[117], 100))
+                .attr("class", "pin-point-title");
+            //pin point text
+            svg.append("text")
+                .attr("x", pinPointX(data[117], 35))
+                .attr("y", pinPointY(data[117], 100))
+                .attr("dy", "1em")
+                .attr("class", "pin-point-text")
+                .text(pinPointText(data[117],1));
+            
+            
+            //add the axis
+            svg.append("g")
+                .call(make_bottom_axis())
+                .attr("transform", "translate(" + 0 + ", " + height + ")")
+                .attr("class", "bottom-axis");
+
+            //add a line on top of the bottom axis
+            svg.append("g")
+                .append("path")
+                .attr("d", "M " + 0 + " " + height + " L " + width + " " + height)
+                .attr("class", "bot-axis-top-line");
+
+            //add a line on bottom of the bottom axis
+            svg.append("g")
+                .append("path")
+                .attr("d", "M " + 0 + " " + (height + text_padding * 2 + font_size) + " L " + width + " " + (height + text_padding * 2 + font_size))
+                .attr("class", "bot-axis-top-line");
+
+            svg.selectAll(".tick text") // select all the text elements for the xaxis
+                .attr("transform", function(d) {
+                    return "translate(30,0)"
+                });
+
+            //title
+            svg.append("text")
+                .attr("x", width / 2)
+                .attr("y", -150)
+                .text("Microsoft Corporation")
+                .attr("class", "title");
+
+            //subtitle
+            svg.append("text")
+                .attr("x", width / 2)
+                .attr("y", -110)
+                .attr("y", -10)
+                .attr("dy", -10)
+                .text("Stock Chart")
+                .attr("class", "subtitle");
+
+            //footer
+            svg.append("text")
+                .attr("x", 0)
+                .attr("y", height + 50)
+                .text("George Blanaru")
+                .attr("class", "footer-left");
+            //footer
+            svg.append("text")
+                .attr("x", width)
+                .attr("y", height + 50)
+                .text("source: nasdaq.com")
+                .attr("class", "footer-right");
+            //
+            //            var focus = svg.append('g').append("text")
+            //                .attr('class', 'focus')
+            //                .style('display', 'none');
+            //
+            //
+            //            //mouse interraction
+            //
+            //            svg.append('rect')
+            //                .attr('class', 'overlay')
+            //                .attr('width', width)
+            //                .attr('height', height)
+            //                .on('mouseover', () => focus.style('display', null))
+            //                .on('mouseout', () => focus.style('display', 'none'))
+            //                .on('mousemove', mousemove);
+            //
+            //            d3.select('.overlay')
+            //                .styles({
+            //                    fill: 'none',
+            //                    'pointer-events': 'all'
+            //                });
+            //
+            //
+            //
+            //            function mousemove() {
+            //                //                var xPos = d3.mouse(this)[0]);
+            //                //                const i = bisectDate(data, x0, 1);
+            //                //                const d0 = data[i - 1];
+            //                //                const d1 = data[i];
+            //                //                const d = x0 - d0.date > d1.date - x0 ? d1 : d0;
+            //
+            //                var point = d3.mouse(this),
+            //                    p = {
+            //                        x: point[0],
+            //                        y: point[1]
+            //                    };
+            //                var d = {}
+            //                d.close = xPosToCloseVal(p.x);
+            //                var index = data.findIndex(i => i.close == d.close.toFixed(2));
+            //                d.date = data[index].date;
+            //
+            //
+            //                console.log();
+            //
+            //                focus.attr("x", 0)
+            //                    .attr("y", 0)
+            //                    .attr("class", "graph-info")
+            //                    .text(d.close.toFixed(2) + " M " + d.date);
+            //
+            //            }
+        });
+
+    </script>
+
+</body>
+
+</html>
